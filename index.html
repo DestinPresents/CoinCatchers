@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1020">
+    <meta name="description" content="Coin Catcher - Catch coins, survive the falling bombs and reach Level 100.">
+    <title>Coin Catcher</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+    <!-- HOME -->
+    <section id="homeScreen" class="screen active">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-icon">🪙</div>
+                <div>
+                    <h1>Coin Catcher</h1>
+                    <span>Catch. Collect. Conquer.</span>
+                </div>
+            </div>
+            <div class="top-stats">
+                <div class="mini-stat"><span>🪙</span><b id="coinBalance">0</b></div>
+                <div class="mini-stat"><span>❤️</span><b id="lifeBalance">5</b></div>
+            </div>
+        </header>
+
+        <main class="home-content">
+            <div class="hero-card">
+                <div class="hero-glow"></div>
+                <div class="coin-orbit">🪙</div>
+                <div class="hero-basket">🧺</div>
+                <h2>Catch the Coins</h2>
+                <p>Move your basket, collect coins and diamonds, avoid bombs and push your way toward Level 100.</p>
+                <button id="playButton" class="primary-button">▶ PLAY GAME</button>
+                <button id="howToPlayButton" class="secondary-button">How to Play</button>
+            </div>
+
+            <div class="player-card">
+                <div class="player-row">
+                    <div class="level-badge"><span>LV</span><b id="playerLevel">1</b></div>
+                    <div class="player-progress">
+                        <div class="progress-head"><span>Player Progress</span><span id="xpText">0 / 100 XP</span></div>
+                        <div class="progress"><div id="xpProgress"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-grid">
+                <button id="achievementsButton" class="menu-card"><span>🏆</span><b>Achievements</b><small>Track your milestones</small></button>
+                <button id="shopButton" class="menu-card"><span>🛒</span><b>Shop</b><small>Unlock basket skins</small></button>
+                <button id="redeemButton" class="menu-card"><span>🎁</span><b>Redeem Code</b><small>Enter your reward code</small></button>
+                <button id="statsButton" class="menu-card"><span>📊</span><b>Statistics</b><small>See your records</small></button>
+                <button id="settingsButton" class="menu-card"><span>⚙️</span><b>Settings</b><small>Game preferences</small></button>
+            </div>
+
+            <div class="info-strip">
+                <span>🎯 100 Levels</span>
+                <span>💾 Auto Save</span>
+                <span>🚫 No Ads</span>
+            </div>
+        </main>
+
+        <footer class="game-footer">
+            <span>Coin Catcher</span>
+            <span class="footer-dot">© 2026</span>
+            <span class="footer-brand">Destin Creates</span>
+        </footer>
+    </section>
+
+    <!-- GAME -->
+    <section id="gameScreen" class="screen game-screen">
+        <div class="game-header">
+            <button id="pauseButton" class="icon-button">Ⅱ</button>
+            <div class="game-stat"><small>LEVEL</small><b id="gameLevel">1</b></div>
+            <div class="game-stat"><small>SCORE</small><b id="score">0</b></div>
+            <div class="game-stat"><small>COINS</small><b id="gameCoins">0</b></div>
+            <div class="game-lives"><span id="gameLives">❤️ ❤️ ❤️ ❤️ ❤️</span></div>
+        </div>
+
+        <div class="combo-bar">
+            <span>COMBO</span>
+            <b id="comboCount">0</b>
+            <span>×</span>
+        </div>
+
+        <div id="comboDisplay" class="combo-display">COMBO!</div>
+
+        <div id="gameArea" class="game-area">
+            <div class="game-hint">DRAG TO MOVE</div>
+            <div id="basket" class="basket">
+                <div class="basket-body">🧺</div>
+            </div>
+        </div>
+
+        <div class="game-footer compact-footer">
+            <span>Coin Catcher</span><span class="footer-dot">© 2026</span><span class="footer-brand">Destin Creates</span>
+        </div>
+    </section>
+
+    <!-- ACHIEVEMENTS -->
+    <section id="achievementsScreen" class="screen page-screen">
+        <header class="page-header">
+            <button class="back-button" data-back="homeScreen">←</button>
+            <div><h2>Achievements</h2><p id="achievementCount">0 / 16</p></div>
+        </header>
+        <main class="page-content">
+            <div id="achievementList" class="achievement-list"></div>
+        </main>
+    </section>
+
+    <!-- SHOP -->
+    <section id="shopScreen" class="screen page-screen">
+        <header class="page-header">
+            <button class="back-button" data-back="homeScreen">←</button>
+            <div><h2>Basket Shop</h2><p><span id="shopCoins">0</span> 🪙 available</p></div>
+        </header>
+        <main class="page-content">
+            <div id="shopGrid" class="shop-grid"></div>
+        </main>
+    </section>
+
+    <!-- REDEEM -->
+    <section id="redeemScreen" class="screen page-screen">
+        <header class="page-header">
+            <button class="back-button" data-back="homeScreen">←</button>
+            <div><h2>Redeem Code</h2><p>Enter a code to receive coins</p></div>
+        </header>
+        <main class="page-content centered-page">
+            <div class="redeem-card">
+                <div class="redeem-icon">🎁</div>
+                <h3>Have a Reward Code?</h3>
+                <p>Enter your code below. Each code can be used only once on this device.</p>
+                <input id="redeemInput" class="code-input" type="text" placeholder="ENTER CODE" autocomplete="off" maxlength="30">
+                <button id="redeemSubmit" class="primary-button">REDEEM CODE</button>
+                <div id="redeemMessage" class="redeem-message"></div>
+            </div>
+        </main>
+    </section>
+
+    <!-- STATS -->
+    <section id="statsScreen" class="screen page-screen">
+        <header class="page-header">
+            <button class="back-button" data-back="homeScreen">←</button>
+            <div><h2>Statistics</h2><p>Your Coin Catcher record</p></div>
+        </header>
+        <main class="page-content">
+            <div class="stats-grid">
+                <div class="stat-card"><span>🏆</span><small>Best Score</small><b id="bestScore">0</b></div>
+                <div class="stat-card"><span>🎮</span><small>Games Played</small><b id="gamesPlayed">0</b></div>
+                <div class="stat-card"><span>🪙</span><small>Total Coins</small><b id="totalCoins">0</b></div>
+                <div class="stat-card"><span>💎</span><small>Diamonds</small><b id="totalDiamonds">0</b></div>
+                <div class="stat-card"><span>🟡</span><small>Golden Coins</small><b id="totalGoldenCoins">0</b></div>
+                <div class="stat-card"><span>💣</span><small>Bomb Hits</small><b id="bombHits">0</b></div>
+                <div class="stat-card"><span>🔥</span><small>Best Combo</small><b id="bestCombo">0</b></div>
+                <div class="stat-card"><span>👑</span><small>Highest Level</small><b id="highestLevel">1</b></div>
+            </div>
+        </main>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="settingsScreen" class="screen page-screen">
+        <header class="page-header">
+            <button class="back-button" data-back="homeScreen">←</button>
+            <div><h2>Settings</h2><p>Customize your game</p></div>
+        </header>
+        <main class="page-content">
+            <div class="settings-list">
+                <div class="setting-row"><div><b>Sound Effects</b><small>Catch and game sounds</small></div><button id="soundToggle" class="toggle"></button></div>
+                <div class="setting-row"><div><b>Music</b><small>Background music</small></div><button id="musicToggle" class="toggle"></button></div>
+                <div class="setting-row"><div><b>Vibration</b><small>Mobile haptic feedback</small></div><button id="vibrationToggle" class="toggle"></button></div>
+            </div>
+            <button id="resetProgressButton" class="danger-button">🗑 Reset All Progress</button>
+        </main>
+    </section>
+</div>
+
+<!-- PAUSE -->
+<div id="pauseOverlay" class="overlay">
+    <div class="modal">
+        <div class="modal-icon">Ⅱ</div>
+        <h2>Game Paused</h2>
+        <p>Your game is safely paused.</p>
+        <button id="resumeButton" class="primary-button">▶ RESUME</button>
+        <button id="pauseExitButton" class="secondary-button">Exit to Home</button>
+    </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOverOverlay" class="overlay">
+    <div class="modal">
+        <div class="modal-icon">💥</div>
+        <h2>Game Over</h2>
+        <div id="newRecord" class="record-badge">NEW RECORD!</div>
+        <div class="result-grid">
+            <div><small>Score</small><b id="finalScore">0</b></div>
+            <div><small>Level</small><b id="finalLevel">1</b></div>
+            <div><small>Coins</small><b id="earnedCoins">0</b></div>
+            <div><small>Best</small><b id="finalBestScore">0</b></div>
+        </div>
+        <button id="playAgainButton" class="primary-button">↻ PLAY AGAIN</button>
+        <button id="gameOverHomeButton" class="secondary-button">Home</button>
+    </div>
+</div>
+
+<!-- LEVEL UP -->
+<div id="levelUpOverlay" class="overlay">
+    <div class="modal level-modal">
+        <div class="modal-icon">🎉</div>
+        <p>LEVEL UP</p>
+        <div class="level-transition"><b id="oldLevel">1</b><span>→</span><b id="newLevel">2</b></div>
+    </div>
+</div>
+
+<!-- MESSAGE -->
+<div id="messageOverlay" class="overlay">
+    <div class="modal">
+        <div id="messageIcon" class="modal-icon">🏆</div>
+        <h2 id="messageTitle">Achievement Unlocked!</h2>
+        <p id="messageText"></p>
+        <button id="messageCloseButton" class="primary-button">CONTINUE</button>
+    </div>
+</div>
+
+<!-- HOW TO PLAY -->
+<div id="howToPlayOverlay" class="overlay">
+    <div class="modal how-modal">
+        <div class="modal-icon">🎮</div>
+        <h2>How to Play</h2>
+        <div class="rules">
+            <p>🪙 <b>Catch coins</b> to increase your score and balance.</p>
+            <p>💎 <b>Diamonds</b> give a bigger reward.</p>
+            <p>🟡 <b>Golden coins</b> are rare and valuable.</p>
+            <p>❤️ <b>Hearts</b> restore a life when you are not already full.</p>
+            <p>💣 <b>Avoid bombs</b> — they cost one life and reset your combo.</p>
+            <p>🔥 Build combos for higher scores.</p>
+            <p>💾 Your progress is automatically saved in your browser.</p>
+        </div>
+        <button id="howToPlayClose" class="primary-button">GOT IT</button>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
