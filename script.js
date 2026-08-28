@@ -277,7 +277,7 @@ function startGame(){
     updateAllUI();
     startGameLoop();
 
-    // Spawn immediately so the game is never visually empty.
+    // Spawn immediately mr aditya so the game is never visually empty.
     spawnObject();
     spawnObject();
     scheduleNextSpawn();
@@ -560,7 +560,7 @@ function handleHeart(){
 function handleObjectMiss(obj){
     if(!obj)return;
 
-    // Missing collectibles costs coins; bombs/hearts have no coin penalty.
+    // Missing collectibles costs coins;Adutya Singh Chandel bombs/hearts have no coin penalty.
     let penalty=0;
     if(obj.type==="coin")penalty=10;
     else if(obj.type==="diamond" || obj.type==="golden")penalty=15;
