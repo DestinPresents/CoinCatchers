@@ -1,0 +1,1373 @@
+/* =========================================================
+   COIN CATCHER
+   Main Game Engine
+   ========================================================= */
+
+const GAME_CONFIG = {
+    MAX_LIVES: 5,
+    STARTING_LIVES: 5,
+    MAX_GAME_LEVEL: 100,
+    STARTING_PLAYER_LEVEL: 1,
+    STARTING_XP: 0,
+    STARTING_COINS: 0,
+    BASE_FALL_SPEED: 1.8,
+    OBJECT_SIZE: 40,
+    COMBO_LIMIT: 999,
+    XP_PER_LEVEL: 100,
+    LEVEL_SCORE_REQUIREMENTS: [
+        0,100,250,450,700,1000,1400,1850,2400,3000,3700,4500,5400,
+        6400,7500,8700,10000,11400,12900,14500,16200,18000,19900,21900,
+        24000,26200,28500,30900,33400,36000,38700,41500,44400,47400,50500,
+        53700,57000,60400,63900,67500,71200,75000,78900,82900,87000,91200,
+        95500,99900,104400,109000,113700,118500,123400,128400,133500,
+        138700,144000,149400,154900,160500,166200,172000,177900,183900,
+        190000,196200,202500,208900,215400,222000,228700,235500,242400,
+        249400,256500,263700,271000,278400,285900,293500,301200,309000,
+        316900,324900,333000,341200,349500,357900,366400,375000,383700,
+        392500,401400,410400,419500,428700,438000,447400,457000,466700
+    ]
+};
+
+const OBJECT_TYPES = {
+    coin: { emoji: "🪙", score: 10, coins: 10 },
+    diamond: { emoji: "💎", score: 50, coins: 50 },
+    golden: { emoji: "🟡", score: 100, coins: 100 },
+    heart: { emoji: "❤️", score: 0, coins: 0 },
+    bomb: { emoji: "💣", score: -25, coins: 0 }
+};
+
+const ACHIEVEMENTS = [
+    { id:"first_catch", icon:"🪙", title:"First Catch", description:"Catch your first coin.", reward:50, check:s=>s.totalCoins>=1 },
+    { id:"coin_100", icon:"🪙", title:"Coin Collector", description:"Collect 100 coins.", reward:100, check:s=>s.totalCoins>=100 },
+    { id:"coin_1000", icon:"💰", title:"Rich", description:"Collect 1,000 coins.", reward:250, check:s=>s.totalCoins>=1000 },
+    { id:"diamond_50", icon:"💎", title:"Diamond Hunter", description:"Collect 50 diamonds.", reward:300, check:s=>s.totalDiamonds>=50 },
+    { id:"golden_10", icon:"🟡", title:"Golden Hands", description:"Collect 10 golden coins.", reward:500, check:s=>s.totalGoldenCoins>=10 },
+    { id:"level_10", icon:"⭐", title:"Rising Star", description:"Reach Game Level 10.", reward:200, check:s=>s.highestLevel>=10 },
+    { id:"level_25", icon:"🔥", title:"Getting Serious", description:"Reach Game Level 25.", reward:500, check:s=>s.highestLevel>=25 },
+    { id:"level_50", icon:"👑", title:"Halfway Hero", description:"Reach Game Level 50.", reward:1000, check:s=>s.highestLevel>=50 },
+    { id:"level_70", icon:"💀", title:"Extreme Survivor", description:"Reach Game Level 70.", reward:2000, check:s=>s.highestLevel>=70 },
+    { id:"level_100", icon:"🏆", title:"Legendary", description:"Reach Game Level 100.", reward:5000, check:s=>s.highestLevel>=100 },
+    { id:"combo_10", icon:"🔥", title:"Combo Starter", description:"Reach a 10× combo.", reward:100, check:s=>s.bestCombo>=10 },
+    { id:"combo_25", icon:"🔥", title:"Combo Master", description:"Reach a 25× combo.", reward:300, check:s=>s.bestCombo>=25 },
+    { id:"combo_50", icon:"⚡", title:"Combo Beast", description:"Reach a 50× combo.", reward:1000, check:s=>s.bestCombo>=50 },
+    { id:"games_10", icon:"🎮", title:"Regular Player", description:"Play 10 games.", reward:100, check:s=>s.gamesPlayed>=10 },
+    { id:"games_100", icon:"🎮", title:"Dedicated", description:"Play 100 games.", reward:1000, check:s=>s.gamesPlayed>=100 },
+    { id:"bomb_dodger", icon:"💣", title:"Bomb Dodger", description:"Catch 100 objects without being hit by a bomb.", reward:750, check:s=>s.bestSafeStreak>=100 }
+];
+
+const SHOP_ITEMS = [
+    { id:"default", name:"Classic Basket", price:0, emoji:"🧺" },
+    { id:"blue", name:"Blue Basket", price:1000, emoji:"🪣" },
+    { id:"red", name:"Red Basket", price:2000, emoji:"🧺" },
+    { id:"gold", name:"Golden Basket", price:7000, emoji:"🏆" },
+    { id:"diamond", name:"Diamond Basket", price:15000, emoji:"💎" },
+    { id:"legendary", name:"Legendary Basket", price:35000, emoji:"👑" }
+];
+
+const REDEEM_CODES = {
+    WELCOME100:100,
+    GAME50:50,
+    ADI7:50000,
+    SOMU7:25000
+};
+
+const DEFAULT_DATA = {
+    coins:0,
+    lives:5,
+    playerXP:0,
+    playerLevel:1,
+    currentSkin:"default",
+    basketY:null,
+    unlockedSkins:["default"],
+    achievements:[],
+    stats:{
+        bestScore:0,
+        gamesPlayed:0,
+        totalCoins:0,
+        totalDiamonds:0,
+        totalGoldenCoins:0,
+        bombHits:0,
+        bestCombo:0,
+        highestLevel:1,
+        bestSafeStreak:0,
+        totalPlayTime:0
+    },
+    redeemedCodes:[],
+    settings:{
+        sound:true,
+        music:true,
+        vibration:true
+    }
+};
+
+let playerData = loadPlayerData();
+
+let gameState = {
+    running:false,
+    paused:false,
+    score:0,
+    level:1,
+    combo:0,
+    safeStreak:0,
+    earnedCoins:0,
+    currentLives:5,
+    objects:[],
+    spawnTimer:null,
+    gameLoop:null,
+    lastTime:0,
+    elapsedTime:0
+};
+
+const screens = {
+    home:document.getElementById("homeScreen"),
+    game:document.getElementById("gameScreen"),
+    achievements:document.getElementById("achievementsScreen"),
+    shop:document.getElementById("shopScreen"),
+    redeem:document.getElementById("redeemScreen"),
+    stats:document.getElementById("statsScreen"),
+    settings:document.getElementById("settingsScreen")
+};
+
+const overlay = {
+    pause:document.getElementById("pauseOverlay"),
+    gameOver:document.getElementById("gameOverOverlay"),
+    levelUp:document.getElementById("levelUpOverlay"),
+    message:document.getElementById("messageOverlay"),
+    howToPlay:document.getElementById("howToPlayOverlay")
+};
+
+const gameArea = document.getElementById("gameArea");
+const basket = document.getElementById("basket");
+
+const STORAGE_KEY = "coinCatcherSave_v1";
+
+function deepMerge(defaults,saved){
+    const result={...defaults,...saved};
+    result.stats={...defaults.stats,...(saved.stats||{})};
+    result.settings={...defaults.settings,...(saved.settings||{})};
+    result.unlockedSkins=Array.isArray(saved.unlockedSkins)?saved.unlockedSkins:[...defaults.unlockedSkins];
+    result.achievements=Array.isArray(saved.achievements)?saved.achievements:[];
+    result.redeemedCodes=Array.isArray(saved.redeemedCodes)?saved.redeemedCodes:[];
+    return result;
+}
+
+function loadPlayerData(){
+    try{
+        // Primary save: same simple localStorage approach as the user's
+        // other working game, with a JSON snapshot for all Coin Catcher data.
+        const saved=localStorage.getItem(STORAGE_KEY);
+
+        if(saved){
+            return deepMerge(DEFAULT_DATA,JSON.parse(saved));
+        }
+
+        // Recovery/compatibility: if a previous version stored individual keys,
+        // restore the important values instead of throwing progress away.
+        const recovered=JSON.parse(JSON.stringify(DEFAULT_DATA));
+        const savedCoins=localStorage.getItem("coinCatcherCoins");
+        const savedLives=localStorage.getItem("coinCatcherLives");
+        const savedXP=localStorage.getItem("coinCatcherXP");
+        const savedPlayerLevel=localStorage.getItem("coinCatcherPlayerLevel");
+
+        if(savedCoins!==null)recovered.coins=Math.max(0,parseInt(savedCoins)||0);
+        if(savedLives!==null)recovered.lives=Math.max(0,Math.min(GAME_CONFIG.MAX_LIVES,parseInt(savedLives)||GAME_CONFIG.STARTING_LIVES));
+        if(savedXP!==null)recovered.playerXP=Math.max(0,parseInt(savedXP)||0);
+        if(savedPlayerLevel!==null)recovered.playerLevel=Math.max(1,parseInt(savedPlayerLevel)||1);
+
+        const savedAchievements=localStorage.getItem("coinCatcherAchievements");
+        const savedSkins=localStorage.getItem("coinCatcherUnlockedSkins");
+        const savedCodes=localStorage.getItem("coinCatcherRedeemedCodes");
+
+        if(savedAchievements){
+            try{recovered.achievements=JSON.parse(savedAchievements)||[];}catch(_){}
+        }
+        if(savedSkins){
+            try{recovered.unlockedSkins=JSON.parse(savedSkins)||["default"];}catch(_){}
+        }
+        if(savedCodes){
+            try{recovered.redeemedCodes=JSON.parse(savedCodes)||[];}catch(_){}
+        }
+
+        return deepMerge(DEFAULT_DATA,recovered);
+    }catch(error){
+        console.error("Save data could not be loaded:",error);
+        return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+}
+
+function savePlayerData(){
+    try{
+        const payload=JSON.stringify(playerData);
+
+        // Main persistent save.
+        localStorage.setItem(STORAGE_KEY,payload);
+
+        // Individual keys intentionally mirror the user's proven save pattern.
+        localStorage.setItem("coinCatcherCoins",String(playerData.coins));
+        localStorage.setItem("coinCatcherLives",String(playerData.lives));
+        localStorage.setItem("coinCatcherXP",String(playerData.playerXP));
+        localStorage.setItem("coinCatcherPlayerLevel",String(playerData.playerLevel));
+        localStorage.setItem("coinCatcherAchievements",JSON.stringify(playerData.achievements));
+        localStorage.setItem("coinCatcherUnlockedSkins",JSON.stringify(playerData.unlockedSkins));
+        localStorage.setItem("coinCatcherRedeemedCodes",JSON.stringify(playerData.redeemedCodes));
+        localStorage.setItem("coinCatcherStats",JSON.stringify(playerData.stats));
+        localStorage.setItem("coinCatcherSettings",JSON.stringify(playerData.settings));
+        localStorage.setItem("coinCatcherCurrentSkin",playerData.currentSkin);
+    }catch(error){
+        console.error("Save failed:",error);
+    }
+}
+
+function showScreen(screenName){
+    Object.values(screens).forEach(screen=>{
+        if(screen)screen.classList.remove("active");
+    });
+    const target=screens[screenName];
+    if(target)target.classList.add("active");
+    updateAllUI();
+}
+
+function openHome(){showScreen("home");}
+function openPage(page){showScreen(page);}
+
+function updateAllUI(){
+    updateHomeUI();
+    updateGameUI();
+    updateStatsUI();
+    updateAchievementsUI();
+    updateShopUI();
+    updateSettingsUI();
+}
+
+function updateHomeUI(){
+    setText("coinBalance",formatNumber(playerData.coins));
+    setText("lifeBalance",playerData.lives);
+    setText("playerLevel",playerData.playerLevel);
+
+    const xpProgress=document.getElementById("xpProgress");
+    const xpText=document.getElementById("xpText");
+
+    if(xpProgress){
+        const xp=playerData.playerXP%GAME_CONFIG.XP_PER_LEVEL;
+        xpProgress.style.width=`${(xp/GAME_CONFIG.XP_PER_LEVEL)*100}%`;
+    }
+
+    if(xpText){
+        const xp=playerData.playerXP%GAME_CONFIG.XP_PER_LEVEL;
+        xpText.textContent=`${xp} / ${GAME_CONFIG.XP_PER_LEVEL} XP`;
+    }
+}
+
+function updateGameUI(){
+    setText("score",formatNumber(gameState.score));
+    setText("gameLevel",gameState.level);
+    setText("gameCoins",formatNumber(gameState.earnedCoins));
+    setText("comboCount",gameState.combo);
+
+    const gameLives=document.getElementById("gameLives");
+    const comboDisplay=document.getElementById("comboDisplay");
+
+    if(gameLives)gameLives.textContent=createLivesDisplay(gameState.currentLives);
+    if(comboDisplay)comboDisplay.classList.toggle("active",gameState.combo>=2);
+}
+
+function updateStatsUI(){
+    const s=playerData.stats;
+    setText("bestScore",formatNumber(s.bestScore));
+    setText("gamesPlayed",formatNumber(s.gamesPlayed));
+    setText("totalCoins",formatNumber(s.totalCoins));
+    setText("totalDiamonds",formatNumber(s.totalDiamonds));
+    setText("totalGoldenCoins",formatNumber(s.totalGoldenCoins));
+    setText("bombHits",formatNumber(s.bombHits));
+    setText("bestCombo",formatNumber(s.bestCombo));
+    setText("highestLevel",formatNumber(s.highestLevel));
+}
+
+function setText(id,value){
+    const element=document.getElementById(id);
+    if(element)element.textContent=value;
+}
+
+function formatNumber(number){
+    return Number(number||0).toLocaleString("en-IN");
+}
+
+function createLivesDisplay(lives){
+    let result="";
+    for(let i=0;i<GAME_CONFIG.MAX_LIVES;i++)result+=i<lives?"❤️ ":"🖤 ";
+    return result.trim();
+}
+
+function startGame(){
+    closeAllOverlays();
+    clearGameTimers();
+    clearFallingObjects();
+
+    gameState.running=true;
+    gameState.paused=false;
+    gameState.score=0;
+    gameState.level=1;
+    gameState.combo=0;
+    gameState.safeStreak=0;
+    gameState.earnedCoins=0;
+    gameState.currentLives=GAME_CONFIG.STARTING_LIVES;
+    gameState.objects=[];
+    gameState.elapsedTime=0;
+
+    playerData.lives=gameState.currentLives;
+    savePlayerData();
+
+    showScreen("game");
+    resetBasketPosition();
+    updateAllUI();
+    startGameLoop();
+
+    // Immediate first spawn, then continue with the normal spawn timer.
+    spawnObject();
+    scheduleNextSpawn();
+}
+
+function startGameLoop(){
+    gameState.lastTime=performance.now();
+    gameState.gameLoop=requestAnimationFrame(gameLoop);
+}
+
+function gameLoop(timestamp){
+    if(!gameState.running)return;
+
+    if(gameState.paused){
+        gameState.lastTime=timestamp;
+        gameState.gameLoop=requestAnimationFrame(gameLoop);
+        return;
+    }
+
+    const delta=Math.min((timestamp-gameState.lastTime)/16.67,3);
+    gameState.lastTime=timestamp;
+
+    updateObjects(delta);
+    checkLevelProgress();
+
+    gameState.gameLoop=requestAnimationFrame(gameLoop);
+}
+
+function getDifficulty(level){
+    let speedMultiplier,spawnInterval,maxObjects,bombChance;
+
+    if(level<=10){
+        speedMultiplier=0.85+(level-1)*0.035;
+        spawnInterval=1050-(level-1)*15;
+        maxObjects=3;
+        bombChance=2+(level-1)*0.35;
+    }else if(level<=20){
+        speedMultiplier=1.20+(level-10)*0.045;
+        spawnInterval=900-(level-10)*14;
+        maxObjects=3;
+        bombChance=5+(level-10)*0.55;
+    }else if(level<=40){
+        speedMultiplier=1.65+(level-20)*0.04;
+        spawnInterval=760-(level-20)*8;
+        maxObjects=4;
+        bombChance=10+(level-20)*0.55;
+    }else if(level<=60){
+        speedMultiplier=2.45+(level-40)*0.055;
+        spawnInterval=600-(level-40)*6;
+        maxObjects=5;
+        bombChance=21+(level-40)*0.65;
+    }else if(level<=70){
+        speedMultiplier=3.55+(level-60)*0.075;
+        spawnInterval=480-(level-60)*6;
+        maxObjects=6;
+        bombChance=34+(level-60)*1.0;
+    }else if(level<=80){
+        speedMultiplier=4.45+(level-70)*0.085;
+        spawnInterval=400-(level-70)*5;
+        maxObjects=7;
+        bombChance=44+(level-70)*1.0;
+    }else if(level<=90){
+        speedMultiplier=5.35+(level-80)*0.095;
+        spawnInterval=350-(level-80)*4;
+        maxObjects=8;
+        bombChance=54+(level-80)*0.8;
+    }else{
+        speedMultiplier=6.3+(level-90)*0.11;
+        spawnInterval=310-(level-90)*3;
+        maxObjects=10;
+        bombChance=62+(level-90)*0.25;
+    }
+
+    return{
+        speedMultiplier,
+        spawnInterval:Math.max(170,spawnInterval),
+        maxObjects,
+        bombChance:Math.min(68,bombChance)
+    };
+}
+
+function scheduleNextSpawn(){
+    if(!gameState.running||gameState.paused)return;
+
+    const difficulty=getDifficulty(gameState.level);
+
+    gameState.spawnTimer=setTimeout(()=>{
+        spawnObject();
+        scheduleNextSpawn();
+    },difficulty.spawnInterval);
+}
+
+function spawnObject(){
+    if(!gameState.running||gameState.paused)return;
+
+    const difficulty=getDifficulty(gameState.level);
+    if(gameState.objects.length>=difficulty.maxObjects)return;
+
+    const type=chooseObjectType(difficulty.bombChance);
+    const object=document.createElement("div");
+
+    object.className=`falling-object ${type}`;
+    object.textContent=OBJECT_TYPES[type].emoji;
+
+    const areaWidth=gameArea.clientWidth;
+    const minX=8;
+    const maxX=Math.max(minX,areaWidth-GAME_CONFIG.OBJECT_SIZE-8);
+    const x=randomBetween(minX,maxX);
+    const startY=-50;
+
+    object.style.left=`${x}px`;
+    object.style.top=`${startY}px`;
+
+    gameArea.appendChild(object);
+
+    // Only a minority of ordinary coins are extra-fast.
+    // All other objects keep the normal speed range.
+    const fastCoin=(type==="coin" && Math.random()<0.18);
+    const speedFactor=fastCoin
+        ? randomBetween(1.45,1.70)
+        : randomBetween(.92,1.08);
+
+    if(fastCoin)object.classList.add("fast-coin");
+
+    gameState.objects.push({
+        element:object,
+        type,
+        x,
+        y:startY,
+        speed:GAME_CONFIG.BASE_FALL_SPEED*difficulty.speedMultiplier*speedFactor,
+        rotation:randomBetween(-8,8),
+        fastCoin
+    });
+}
+
+function chooseObjectType(bombChance){
+    const random=Math.random()*100;
+    if(random<bombChance)return"bomb";
+
+    const roll=Math.random()*100;
+
+    if(gameState.level>=10&&roll<6)return"golden";
+    if(gameState.level>=5&&roll<18)return"diamond";
+    if(gameState.level>=15&&roll<23)return"heart";
+
+    return"coin";
+}
+
+function updateObjects(delta){
+    if(!gameState.objects.length)return;
+
+    const basketRect=basket.getBoundingClientRect();
+    const areaRect=gameArea.getBoundingClientRect();
+
+    const basketLeft=basketRect.left-areaRect.left;
+    const basketRight=basketLeft+basketRect.width;
+    const basketTop=basketRect.top-areaRect.top;
+
+    for(let i=gameState.objects.length-1;i>=0;i--){
+        const obj=gameState.objects[i];
+
+        obj.y+=obj.speed*delta;
+        obj.rotation+=.5*delta;
+
+        obj.element.style.transform=`translateY(${obj.y}px) rotate(${obj.rotation}deg)`;
+
+        const objectLeft=obj.x;
+        const objectRight=obj.x+GAME_CONFIG.OBJECT_SIZE;
+        const objectBottom=obj.y+GAME_CONFIG.OBJECT_SIZE;
+
+        if(objectBottom>=basketTop&&obj.y<=basketTop+basketRect.height&&objectRight>=basketLeft&&objectLeft<=basketRight){
+            handleObjectCatch(obj);
+            removeObject(i);
+            continue;
+        }
+
+        if(obj.y>gameArea.clientHeight+60){
+            handleObjectMiss(obj);
+            removeObject(i);
+        }
+    }
+}
+
+function handleObjectCatch(obj){
+    const data=OBJECT_TYPES[obj.type];
+
+    if(obj.type==="bomb"){
+        handleBomb();
+        return;
+    }
+
+    if(obj.type==="heart"){
+        handleHeart();
+        return;
+    }
+
+    gameState.combo++;
+    gameState.safeStreak++;
+
+    if(gameState.combo>playerData.stats.bestCombo)playerData.stats.bestCombo=gameState.combo;
+
+    let score=data.score;
+    const coinReward=data.coins;
+
+    if(gameState.combo>=5)score=Math.round(score*1.10);
+    if(gameState.combo>=10)score=Math.round(score*1.25);
+    if(gameState.combo>=20)score=Math.round(score*1.50);
+    if(gameState.combo>=30)score=Math.round(score*2);
+
+    gameState.score+=score;
+    gameState.earnedCoins+=coinReward;
+    playerData.coins+=coinReward;
+    playerData.stats.totalCoins+=coinReward;
+
+    if(obj.type==="diamond")playerData.stats.totalDiamonds++;
+    if(obj.type==="golden")playerData.stats.totalGoldenCoins++;
+
+    if(gameState.safeStreak>playerData.stats.bestSafeStreak)playerData.stats.bestSafeStreak=gameState.safeStreak;
+
+    addXP(1);
+
+    showFloatingScore(obj.x,obj.y,`+${score}`);
+    createParticles(obj.x,obj.y);
+    vibrate([20]);
+
+    checkAchievements();
+    updateAllUI();
+    savePlayerData();
+}
+
+function handleBomb(){
+    gameState.currentLives--;
+    playerData.lives=gameState.currentLives;
+    gameState.combo=0;
+    gameState.safeStreak=0;
+    playerData.stats.bombHits++;
+
+    vibrate([80,40,80]);
+    showFloatingScore(basket.offsetLeft,basket.offsetTop-20,"-1 ❤️");
+
+    document.body.classList.add("bomb-hit");
+    setTimeout(()=>document.body.classList.remove("bomb-hit"),250);
+
+    if(gameState.currentLives<=0){
+        gameState.currentLives=0;
+        updateAllUI();
+        endGame();
+        return;
+    }
+
+    updateAllUI();
+    savePlayerData();
+}
+
+function handleHeart(){
+    if(gameState.currentLives<GAME_CONFIG.MAX_LIVES){
+        gameState.currentLives++;
+        playerData.lives=gameState.currentLives;
+        showFloatingScore(basket.offsetLeft,basket.offsetTop-20,"+1 ❤️");
+        vibrate([25]);
+    }else{
+        showFloatingScore(basket.offsetLeft,basket.offsetTop-20,"FULL ❤️");
+    }
+
+    updateAllUI();
+    savePlayerData();
+}
+
+function handleObjectMiss(obj){
+    if(obj.type==="coin"){
+        playerData.coins=Math.max(0,playerData.coins-10);
+        gameState.earnedCoins-=10;
+        showFloatingScore(obj.x,obj.y,"-10 🪙");
+    }else if(obj.type==="diamond"||obj.type==="golden"){
+        playerData.coins=Math.max(0,playerData.coins-15);
+        gameState.earnedCoins-=15;
+        showFloatingScore(obj.x,obj.y,"-15 🪙");
+    }
+
+    savePlayerData();
+    updateAllUI();
+}
+
+function removeObject(index){
+    const obj=gameState.objects[index];
+    if(!obj)return;
+
+    if(obj.element&&obj.element.parentNode)obj.element.remove();
+    gameState.objects.splice(index,1);
+}
+
+function clearFallingObjects(){
+    gameState.objects.forEach(obj=>{
+        if(obj.element&&obj.element.parentNode)obj.element.remove();
+    });
+    gameState.objects=[];
+}
+
+function getRequiredScore(level){
+    if(level<=0)return 0;
+
+    if(level<GAME_CONFIG.LEVEL_SCORE_REQUIREMENTS.length){
+        return GAME_CONFIG.LEVEL_SCORE_REQUIREMENTS[level];
+    }
+
+    const last=GAME_CONFIG.LEVEL_SCORE_REQUIREMENTS[GAME_CONFIG.LEVEL_SCORE_REQUIREMENTS.length-1];
+    return last+(level-99)*10000;
+}
+
+function calculateLevel(score){
+    let level=1;
+
+    for(let i=1;i<=GAME_CONFIG.MAX_GAME_LEVEL;i++){
+        if(score>=getRequiredScore(i))level=i;
+        else break;
+    }
+
+    return level;
+}
+
+function checkLevelProgress(){
+    if(!gameState.running||gameState.level>=GAME_CONFIG.MAX_GAME_LEVEL)return;
+
+    const newLevel=calculateLevel(gameState.score);
+
+    if(newLevel>gameState.level)levelUp(newLevel);
+}
+
+function levelUp(newLevel){
+    const oldLevel=gameState.level;
+    gameState.level=Math.min(GAME_CONFIG.MAX_GAME_LEVEL,newLevel);
+
+    if(gameState.level>playerData.stats.highestLevel){
+        playerData.stats.highestLevel=gameState.level;
+    }
+
+    addXP(10);
+
+    setText("oldLevel",oldLevel);
+    setText("newLevel",gameState.level);
+
+    openOverlay(overlay.levelUp);
+    vibrate([40,30,80]);
+
+    setTimeout(()=>closeOverlay(overlay.levelUp),1300);
+
+    checkAchievements();
+    savePlayerData();
+    updateAllUI();
+}
+
+function addXP(amount){
+    playerData.playerXP+=amount;
+
+    const newLevel=Math.floor(playerData.playerXP/GAME_CONFIG.XP_PER_LEVEL)+1;
+
+    if(newLevel>playerData.playerLevel){
+        playerData.playerLevel=newLevel;
+        showMessage("⭐","Player Level Up!",`You reached Player Level ${newLevel}.`);
+    }
+}
+
+function endGame(){
+    if(!gameState.running)return;
+
+    gameState.running=false;
+    gameState.paused=false;
+
+    clearGameTimers();
+    cancelAnimationFrame(gameState.gameLoop);
+    clearFallingObjects();
+
+    playerData.stats.gamesPlayed++;
+    playerData.lives=gameState.currentLives;
+
+    addXP(Math.max(5,Math.floor(gameState.score/50)));
+
+    let isNewRecord=false;
+
+    if(gameState.score>playerData.stats.bestScore){
+        playerData.stats.bestScore=gameState.score;
+        isNewRecord=true;
+    }
+
+    if(gameState.level>playerData.stats.highestLevel){
+        playerData.stats.highestLevel=gameState.level;
+    }
+
+    setText("finalScore",formatNumber(gameState.score));
+    setText("finalLevel",gameState.level);
+    setText("earnedCoins",formatNumber(gameState.earnedCoins));
+    setText("finalBestScore",formatNumber(playerData.stats.bestScore));
+
+    const newRecord=document.getElementById("newRecord");
+
+    if(newRecord)newRecord.classList.toggle("active",isNewRecord);
+
+    checkAchievements();
+    savePlayerData();
+    updateAllUI();
+    openOverlay(overlay.gameOver);
+}
+
+function pauseGame(){
+    if(!gameState.running)return;
+
+    gameState.paused=true;
+    clearTimeout(gameState.spawnTimer);
+    openOverlay(overlay.pause);
+}
+
+function resumeGame(){
+    if(!gameState.running)return;
+
+    gameState.paused=false;
+    closeOverlay(overlay.pause);
+    gameState.lastTime=performance.now();
+    scheduleNextSpawn();
+}
+
+function exitGame(){
+    savePlayerData();
+    gameState.running=false;
+    gameState.paused=false;
+    clearGameTimers();
+    clearFallingObjects();
+    closeAllOverlays();
+    openHome();
+}
+
+function clearGameTimers(){
+    if(gameState.spawnTimer){
+        clearTimeout(gameState.spawnTimer);
+        gameState.spawnTimer=null;
+    }
+
+    if(gameState.gameLoop){
+        cancelAnimationFrame(gameState.gameLoop);
+        gameState.gameLoop=null;
+    }
+}
+
+let basketX=0;
+let basketY=0;
+let pointerActive=false;
+let activePointerId=null;
+
+function getBasketVerticalLimits(){
+    const areaHeight=gameArea.clientHeight;
+    const basketHeight=basket.offsetHeight;
+
+    // User can move the basket upward to about half the game area's height.
+    const minY=Math.max(0,Math.round(areaHeight*0.50-basketHeight));
+    const maxY=Math.max(minY,areaHeight-basketHeight-6);
+
+    return {minY,maxY};
+}
+
+function resetBasketPosition(){
+    const width=gameArea.clientWidth;
+    const height=gameArea.clientHeight;
+
+    basketX=width/2-basket.offsetWidth/2;
+
+    const savedY=Number(playerData.basketY);
+    if(Number.isFinite(savedY)){
+        basketY=savedY;
+    }else{
+        basketY=Math.max(0,height-basket.offsetHeight-24);
+    }
+
+    applyBasketPosition(false);
+}
+
+function applyBasketPosition(save=true){
+    const maxX=Math.max(0,gameArea.clientWidth-basket.offsetWidth);
+    const limits=getBasketVerticalLimits();
+
+    basketX=Math.max(0,Math.min(maxX,basketX));
+    basketY=Math.max(limits.minY,Math.min(limits.maxY,basketY));
+
+    basket.style.left=`${basketX+basket.offsetWidth/2}px`;
+    basket.style.top=`${basketY}px`;
+    basket.style.bottom="auto";
+
+    if(save){
+        playerData.basketY=basketY;
+        savePlayerData();
+    }
+}
+
+function moveBasket(clientX,clientY){
+    const rect=gameArea.getBoundingClientRect();
+
+    basketX=clientX-rect.left-basket.offsetWidth/2;
+    basketY=clientY-rect.top-basket.offsetHeight/2;
+
+    applyBasketPosition(true);
+}
+
+gameArea.addEventListener("pointerdown",event=>{
+    if(!gameState.running||gameState.paused)return;
+
+    pointerActive=true;
+    activePointerId=event.pointerId;
+
+    moveBasket(event.clientX,event.clientY);
+
+    try{gameArea.setPointerCapture(event.pointerId);}catch(_){}
+});
+
+gameArea.addEventListener("pointermove",event=>{
+    if(!pointerActive||event.pointerId!==activePointerId)return;
+    if(!gameState.running||gameState.paused)return;
+
+    moveBasket(event.clientX,event.clientY);
+});
+
+function stopPointerControl(event){
+    if(event && activePointerId!==null && event.pointerId!==activePointerId)return;
+    pointerActive=false;
+    activePointerId=null;
+}
+
+gameArea.addEventListener("pointerup",stopPointerControl);
+gameArea.addEventListener("pointercancel",stopPointerControl);
+
+document.addEventListener("keydown",event=>{
+    if(!gameState.running||gameState.paused)return;
+
+    const moveAmount=35;
+
+    if(event.key==="ArrowLeft"||event.key.toLowerCase()==="a"){
+        basketX-=moveAmount;
+        applyBasketPosition();
+        event.preventDefault();
+    }
+
+    if(event.key==="ArrowRight"||event.key.toLowerCase()==="d"){
+        basketX+=moveAmount;
+        applyBasketPosition();
+        event.preventDefault();
+    }
+
+    if(event.key==="ArrowUp"||event.key.toLowerCase()==="w"){
+        basketY-=moveAmount;
+        applyBasketPosition();
+        event.preventDefault();
+    }
+
+    if(event.key==="ArrowDown"||event.key.toLowerCase()==="s"){
+        basketY+=moveAmount;
+        applyBasketPosition();
+        event.preventDefault();
+    }
+
+    if(event.key==="Escape")pauseGame();
+});
+
+function updateAchievementsUI(){
+    const list=document.getElementById("achievementList");
+    if(!list)return;
+
+    list.innerHTML="";
+
+    ACHIEVEMENTS.forEach(achievement=>{
+        const unlocked=playerData.achievements.includes(achievement.id);
+        const card=document.createElement("div");
+
+        card.className=`achievement-card ${unlocked?"unlocked":"locked"}`;
+
+        card.innerHTML=`
+            <div class="achievement-icon">${unlocked?achievement.icon:"🔒"}</div>
+            <div class="achievement-info">
+                <strong>${achievement.title}</strong>
+                <p>${achievement.description}</p>
+            </div>
+            <div class="achievement-status">${unlocked?"✓":`+${achievement.reward} 🪙`}</div>
+        `;
+
+        list.appendChild(card);
+    });
+
+    setText("achievementCount",`${playerData.achievements.length} / ${ACHIEVEMENTS.length}`);
+}
+
+function checkAchievements(){
+    let changed=false;
+
+    ACHIEVEMENTS.forEach(achievement=>{
+        if(playerData.achievements.includes(achievement.id))return;
+
+        let unlocked=false;
+
+        try{
+            unlocked=achievement.check(playerData.stats);
+        }catch(error){
+            unlocked=false;
+        }
+
+        if(!unlocked)return;
+
+        playerData.achievements.push(achievement.id);
+        playerData.coins+=achievement.reward;
+        addXP(20);
+        changed=true;
+
+        showAchievementToast(achievement);
+    });
+
+    if(changed){
+        savePlayerData();
+        updateAllUI();
+    }
+}
+
+function updateShopUI(){
+    const grid=document.getElementById("shopGrid");
+    if(!grid)return;
+
+    setText("shopCoins",formatNumber(playerData.coins));
+    grid.innerHTML="";
+
+    SHOP_ITEMS.forEach(item=>{
+        const unlocked=playerData.unlockedSkins.includes(item.id);
+        const selected=playerData.currentSkin===item.id;
+
+        const card=document.createElement("div");
+
+        card.className="shop-item";
+
+        let buttonText;
+
+        if(selected)buttonText="EQUIPPED";
+        else if(unlocked)buttonText="EQUIP";
+        else buttonText=`${formatNumber(item.price)} 🪙`;
+
+        card.innerHTML=`
+            <div class="shop-preview">${item.emoji}</div>
+            <strong>${item.name}</strong>
+            <small>${selected?"Currently equipped":unlocked?"Owned":"Cosmetic skin"}</small>
+            <button class="shop-buy-button ${selected||unlocked?"owned":""}" data-shop-id="${item.id}">
+                ${buttonText}
+            </button>
+        `;
+
+        grid.appendChild(card);
+    });
+
+    document.querySelectorAll("[data-shop-id]").forEach(button=>{
+        button.addEventListener("click",()=>purchaseOrEquipSkin(button.dataset.shopId));
+    });
+}
+
+function purchaseOrEquipSkin(skinId){
+    const item=SHOP_ITEMS.find(shopItem=>shopItem.id===skinId);
+    if(!item)return;
+
+    if(playerData.unlockedSkins.includes(skinId)){
+        playerData.currentSkin=skinId;
+        applyCurrentSkin();
+        savePlayerData();
+        updateShopUI();
+        return;
+    }
+
+    if(playerData.coins<item.price){
+        showMessage("🪙","Not Enough Coins",`You need ${formatNumber(item.price)} coins.`);
+        return;
+    }
+
+    playerData.coins-=item.price;
+    playerData.unlockedSkins.push(skinId);
+    playerData.currentSkin=skinId;
+
+    applyCurrentSkin();
+    savePlayerData();
+    updateAllUI();
+
+    showMessage("🛒","Item Unlocked!",`${item.name} is now equipped.`);
+}
+
+function applyCurrentSkin(){
+    const item=SHOP_ITEMS.find(shopItem=>shopItem.id===playerData.currentSkin);
+    if(!item)return;
+
+    const basketBody=basket?.querySelector(".basket-body");
+    if(basketBody)basketBody.textContent=item.emoji;
+}
+
+function redeemCode(){
+    const input=document.getElementById("redeemInput");
+    const message=document.getElementById("redeemMessage");
+
+    if(!input||!message)return;
+
+    const code=input.value.trim().toUpperCase();
+    message.className="redeem-message";
+
+    if(!code){
+        message.textContent="Please enter a code.";
+        message.classList.add("error");
+        return;
+    }
+
+    if(playerData.redeemedCodes.includes(code)){
+        message.textContent="This code has already been used.";
+        message.classList.add("error");
+        return;
+    }
+
+    if(!Object.prototype.hasOwnProperty.call(REDEEM_CODES,code)){
+        message.textContent="Invalid or expired code.";
+        message.classList.add("error");
+        return;
+    }
+
+    const reward=REDEEM_CODES[code];
+
+    playerData.coins+=reward;
+    playerData.redeemedCodes.push(code);
+
+    savePlayerData();
+    updateAllUI();
+
+    input.value="";
+    message.textContent=`Success! You received ${formatNumber(reward)} coins.`;
+    message.classList.add("success");
+
+    vibrate([30,30,60]);
+}
+
+function updateSettingsUI(){
+    updateToggle(document.getElementById("soundToggle"),playerData.settings.sound);
+    updateToggle(document.getElementById("musicToggle"),playerData.settings.music);
+    updateToggle(document.getElementById("vibrationToggle"),playerData.settings.vibration);
+}
+
+function updateToggle(element,active){
+    if(element)element.classList.toggle("active",active);
+}
+
+function resetProgress(){
+    const confirmed=confirm("Are you sure? This will permanently delete all Coin Catcher progress stored on this device.");
+    if(!confirmed)return;
+
+    localStorage.removeItem(STORAGE_KEY);
+
+    [
+        "coinCatcherCoins",
+        "coinCatcherLives",
+        "coinCatcherXP",
+        "coinCatcherPlayerLevel",
+        "coinCatcherAchievements",
+        "coinCatcherUnlockedSkins",
+        "coinCatcherRedeemedCodes",
+        "coinCatcherStats",
+        "coinCatcherSettings",
+        "coinCatcherCurrentSkin"
+    ].forEach(key=>localStorage.removeItem(key));
+
+    playerData=JSON.parse(JSON.stringify(DEFAULT_DATA));
+    gameState.currentLives=GAME_CONFIG.STARTING_LIVES;
+
+    applyCurrentSkin();
+    updateAllUI();
+    openHome();
+
+    showMessage("🗑️","Progress Reset","Your local game progress has been deleted.");
+}
+
+function openOverlay(element){
+    if(element)element.classList.add("active");
+}
+
+function closeOverlay(element){
+    if(element)element.classList.remove("active");
+}
+
+function closeAllOverlays(){
+    Object.values(overlay).forEach(element=>{
+        if(element)element.classList.remove("active");
+    });
+}
+
+let achievementToastQueue=[];
+let achievementToastBusy=false;
+
+function ensureAchievementToastStyles(){
+    if(document.getElementById("ccAchievementToastStyles"))return;
+
+    const style=document.createElement("style");
+    style.id="ccAchievementToastStyles";
+    style.textContent=`
+        .cc-achievement-toast-container{
+            position:fixed;
+            top:calc(10px + env(safe-area-inset-top));
+            right:10px;
+            z-index:999999;
+            width:min(300px,calc(100vw - 20px));
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+            pointer-events:none;
+        }
+        .cc-achievement-toast{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding:11px 13px;
+            border-radius:14px;
+            border:1px solid rgba(245,197,66,.35);
+            background:rgba(14,15,20,.95);
+            box-shadow:0 10px 28px rgba(0,0,0,.35);
+            backdrop-filter:blur(10px);
+            -webkit-backdrop-filter:blur(10px);
+            transform:translateX(calc(100% + 20px));
+            opacity:0;
+            animation:ccAchievementIn .25s ease-out forwards;
+        }
+        .cc-achievement-toast.out{
+            animation:ccAchievementOut .25s ease-in forwards;
+        }
+        .cc-achievement-icon{
+            width:38px;
+            height:38px;
+            flex:0 0 38px;
+            display:grid;
+            place-items:center;
+            border-radius:11px;
+            background:rgba(245,197,66,.11);
+            font-size:20px;
+        }
+        .cc-achievement-title{
+            color:#f5c542;
+            font-size:10px;
+            font-weight:800;
+            letter-spacing:.5px;
+            text-transform:uppercase;
+        }
+        .cc-achievement-name{
+            color:#fff;
+            font-size:13px;
+            font-weight:700;
+            margin-top:2px;
+        }
+        .cc-achievement-reward{
+            color:#aeb1bb;
+            font-size:10px;
+            margin-top:2px;
+        }
+        @keyframes ccAchievementIn{
+            to{transform:translateX(0);opacity:1}
+        }
+        @keyframes ccAchievementOut{
+            to{transform:translateX(calc(100% + 20px));opacity:0}
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function showAchievementToast(achievement){
+    achievementToastQueue.push(achievement);
+    processAchievementToastQueue();
+}
+
+function processAchievementToastQueue(){
+    if(achievementToastBusy||achievementToastQueue.length===0)return;
+
+    achievementToastBusy=true;
+    ensureAchievementToastStyles();
+
+    let container=document.getElementById("ccAchievementToastContainer");
+
+    if(!container){
+        container=document.createElement("div");
+        container.id="ccAchievementToastContainer";
+        container.className="cc-achievement-toast-container";
+        document.body.appendChild(container);
+    }
+
+    const achievement=achievementToastQueue.shift();
+
+    const toast=document.createElement("div");
+    toast.className="cc-achievement-toast";
+
+    const icon=document.createElement("div");
+    icon.className="cc-achievement-icon";
+    icon.textContent=achievement.icon||"🏆";
+
+    const body=document.createElement("div");
+
+    const title=document.createElement("div");
+    title.className="cc-achievement-title";
+    title.textContent="Achievement Unlocked";
+
+    const name=document.createElement("div");
+    name.className="cc-achievement-name";
+    name.textContent=achievement.title||"Achievement";
+
+    const reward=document.createElement("div");
+    reward.className="cc-achievement-reward";
+    reward.textContent=`+${formatNumber(achievement.reward||0)} Coins`;
+
+    body.append(title,name,reward);
+    toast.append(icon,body);
+    container.appendChild(toast);
+
+    // No sound. No overlay. No pause. Gameplay continues underneath.
+    setTimeout(()=>{
+        toast.classList.add("out");
+
+        setTimeout(()=>{
+            toast.remove();
+            achievementToastBusy=false;
+            processAchievementToastQueue();
+        },280);
+    },2300);
+}
+
+function showMessage(icon,title,text){
+    setText("messageIcon",icon);
+    setText("messageTitle",title);
+    setText("messageText",text);
+    openOverlay(overlay.message);
+}
+
+function showFloatingScore(x,y,text){
+    const element=document.createElement("div");
+
+    element.className="floating-score";
+    element.textContent=text;
+    element.style.left=`${x}px`;
+    element.style.top=`${y}px`;
+
+    gameArea.appendChild(element);
+
+    setTimeout(()=>element.remove(),800);
+}
+
+function createParticles(x,y){
+    for(let i=0;i<5;i++){
+        const particle=document.createElement("div");
+
+        particle.className="particle";
+        particle.style.left=`${x+18}px`;
+        particle.style.top=`${y+18}px`;
+
+        const angle=Math.random()*Math.PI*2;
+        const distance=randomBetween(20,50);
+
+        particle.style.setProperty("--particle-x",`${Math.cos(angle)*distance}px`);
+        particle.style.setProperty("--particle-y",`${Math.sin(angle)*distance}px`);
+
+        gameArea.appendChild(particle);
+
+        setTimeout(()=>particle.remove(),700);
+    }
+}
+
+function vibrate(pattern){
+    if(!playerData.settings.vibration)return;
+    if(navigator.vibrate)navigator.vibrate(pattern);
+}
+
+/* Buttons */
+
+document.getElementById("playButton")?.addEventListener("click",startGame);
+document.getElementById("achievementsButton")?.addEventListener("click",()=>openPage("achievements"));
+document.getElementById("shopButton")?.addEventListener("click",()=>openPage("shop"));
+document.getElementById("redeemButton")?.addEventListener("click",()=>openPage("redeem"));
+document.getElementById("statsButton")?.addEventListener("click",()=>openPage("stats"));
+document.getElementById("settingsButton")?.addEventListener("click",()=>openPage("settings"));
+
+document.getElementById("pauseButton")?.addEventListener("click",pauseGame);
+document.getElementById("resumeButton")?.addEventListener("click",resumeGame);
+document.getElementById("exitGameButton")?.addEventListener("click",exitGame);
+document.getElementById("pauseExitButton")?.addEventListener("click",exitGame);
+
+document.getElementById("playAgainButton")?.addEventListener("click",startGame);
+
+document.getElementById("gameOverHomeButton")?.addEventListener("click",()=>{
+    closeAllOverlays();
+    openHome();
+});
+
+document.getElementById("redeemSubmit")?.addEventListener("click",redeemCode);
+
+document.getElementById("redeemInput")?.addEventListener("keydown",event=>{
+    if(event.key==="Enter")redeemCode();
+});
+
+document.querySelectorAll("[data-back]").forEach(button=>{
+    button.addEventListener("click",()=>{
+        if(button.dataset.back==="homeScreen")openHome();
+    });
+});
+
+document.getElementById("messageCloseButton")?.addEventListener("click",()=>closeOverlay(overlay.message));
+
+document.getElementById("howToPlayButton")?.addEventListener("click",()=>openOverlay(overlay.howToPlay));
+
+document.getElementById("howToPlayClose")?.addEventListener("click",()=>closeOverlay(overlay.howToPlay));
+
+document.getElementById("soundToggle")?.addEventListener("click",()=>{
+    playerData.settings.sound=!playerData.settings.sound;
+    savePlayerData();
+    updateSettingsUI();
+});
+
+document.getElementById("musicToggle")?.addEventListener("click",()=>{
+    playerData.settings.music=!playerData.settings.music;
+    savePlayerData();
+    updateSettingsUI();
+});
+
+document.getElementById("vibrationToggle")?.addEventListener("click",()=>{
+    playerData.settings.vibration=!playerData.settings.vibration;
+    savePlayerData();
+    updateSettingsUI();
+});
+
+document.getElementById("resetProgressButton")?.addEventListener("click",resetProgress);
+
+window.addEventListener("resize",()=>{
+    if(gameState.running){
+        const max=gameArea.clientWidth-basket.offsetWidth;
+        basketX=Math.max(0,Math.min(max,basketX));
+        applyBasketPosition(false);
+    }
+});
+
+document.addEventListener("visibilitychange",()=>{
+    if(document.hidden)savePlayerData();
+});
+
+window.addEventListener("pagehide",savePlayerData);
+window.addEventListener("beforeunload",savePlayerData);
+
+// Periodic persistent backup. This does not pause the game.
+setInterval(savePlayerData,5000);
+
+function initializeGame(){
+    applyCurrentSkin();
+    updateAllUI();
+    resetBasketPosition();
+}
+
+initializeGame();
