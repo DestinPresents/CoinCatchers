@@ -57,19 +57,18 @@ const ACHIEVEMENTS = [
 
 const SHOP_ITEMS = [
     { id:"default", name:"Classic Basket", price:0, emoji:"🧺" },
-    { id:"blue", name:"Blue Basket", price:500, emoji:"🪣" },
-    { id:"red", name:"Red Basket", price:1500, emoji:"🧺" },
-    { id:"gold", name:"Golden Basket", price:5000, emoji:"🏆" },
-    { id:"diamond", name:"Diamond Basket", price:10000, emoji:"💎" },
-    { id:"legendary", name:"Legendary Basket", price:25000, emoji:"👑" }
+    { id:"blue", name:"Blue Basket", price:1000, emoji:"🪣" },
+    { id:"red", name:"Red Basket", price:2500, emoji:"🧺" },
+    { id:"gold", name:"Golden Basket", price:10000, emoji:"🏆" },
+    { id:"diamond", name:"Diamond Basket", price:20000, emoji:"💎" },
+    { id:"legendary", name:"Legendary Basket", price:40000, emoji:"👑" }
 ];
 
 const REDEEM_CODES = {
     WELCOME100:100,
-    COIN500:500,
-    GOLD1000:1000,
-    CATCHER2026:250,
-    LEGEND100:1000
+    GOLD7:777,
+    ADI7:50000,
+    SOMU7:3434
 };
 
 const DEFAULT_DATA = {
