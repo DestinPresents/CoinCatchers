@@ -1,5 +1,5 @@
 /* =========================================================
-   COIN CATCHER
+   COIN CATCHER | Destin
    Main Game Engine
    ========================================================= */
 
@@ -58,7 +58,7 @@ const ACHIEVEMENTS = [
 const SHOP_ITEMS = [
     { id:"default", name:"Classic Basket", price:0, emoji:"🧺" },
     { id:"blue", name:"Blue Basket", price:1000, emoji:"🪣" },
-    { id:"red", name:"Red Basket", price:2000, emoji:"🧺" },
+    { id:"red", name:"Dust Basket", price:2000, emoji:"🗑️" },
     { id:"gold", name:"Golden Basket", price:7000, emoji:"🏆" },
     { id:"diamond", name:"Diamond Basket", price:15000, emoji:"💎" },
     { id:"legendary", name:"Legendary Basket", price:35000, emoji:"👑" }
@@ -66,14 +66,14 @@ const SHOP_ITEMS = [
 
 const REDEEM_CODES = {
     WELCOME100:100,
-    GAME50:50,
-    ADI7:50000,
-    SOMU7:25000
+    COIN500:500,
+    ADI7S:50000,
+    SOMU7:3434
 };
 
 const DEFAULT_DATA = {
     coins:0,
-    lives:5,
+    lives:3,
     playerXP:0,
     playerLevel:1,
     currentSkin:"default",
@@ -153,16 +153,16 @@ function deepMerge(defaults,saved){
 
 function loadPlayerData(){
     try{
-        // Primary save: same simple localStorage approach as the user's
-        // other working game, with a JSON snapshot for all Coin Catcher data.
+        // Primary save: same adityasingh simple localStorage approach as the user's
+        // other working game, with a JSON snapshot adityasinghchandel for all Coin Catcher data.
         const saved=localStorage.getItem(STORAGE_KEY);
 
         if(saved){
             return deepMerge(DEFAULT_DATA,JSON.parse(saved));
         }
 
-        // Recovery/compatibility: if a previous version stored individual keys,
-        // restore the important values instead of throwing progress away.
+        // Recovery/compatibility: if a previous version aditya  stored individual keys,
+        // restore the important values instead adityasingh of throwing progress away.
         const recovered=JSON.parse(JSON.stringify(DEFAULT_DATA));
         const savedCoins=localStorage.getItem("coinCatcherCoins");
         const savedLives=localStorage.getItem("coinCatcherLives");
