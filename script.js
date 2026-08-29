@@ -57,8 +57,8 @@ const ACHIEVEMENTS = [
 
 const SHOP_ITEMS = [
     { id:"default", name:"Classic Basket", price:0, emoji:"🧺" },
-    { id:"blue", name:"Blue Basket", price:1000, emoji:"🪣" },
-    { id:"red", name:"Red Basket", price:2000, emoji:"🧺" },
+    { id:"blue", name:"Normal Basket", price:1000, emoji:"🗑️" },
+    { id:"red", name:"Blue Basket", price:2000, emoji:"🪣" },
     { id:"gold", name:"Golden Basket", price:7000, emoji:"🏆" },
     { id:"diamond", name:"Diamond Basket", price:15000, emoji:"💎" },
     { id:"legendary", name:"Legendary Basket", price:35000, emoji:"👑" }
